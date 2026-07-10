@@ -4,6 +4,7 @@ import type { RuntimeMobileTerminalTheme } from '../../../src/shared/runtime-typ
 import { colors } from '../theme/mobile-theme'
 import { TERMINAL_TEXT_SCALES } from '../storage/preferences'
 import { TERMINAL_PATH_TAP_JS } from './terminal-path-tap-injected'
+import * as terminalWebviewFont from './terminal-webview-font'
 import { XTERM_ENGINE_CSS, XTERM_ENGINE_JS } from './terminal-webview-engine.generated'
 import { TERMINAL_REFLOW_JS } from './terminal-webview-reflow-injected'
 import { TERMINAL_TAP_DISPATCH_JS } from './terminal-webview-tap-dispatch-injected'
@@ -59,7 +60,7 @@ window.onerror = function(msg) {
   if (window.__engineErrors.length < 20) window.__engineErrors.push(String(msg));
 };
 </script>
-<style>${XTERM_ENGINE_CSS}</style>
+<style>${XTERM_ENGINE_CSS}</style><style>${terminalWebviewFont.TERMINAL_SYMBOL_FONT_CSS}</style>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
@@ -208,8 +209,7 @@ window.onerror = function(msg) {
 <script>
 (function() {
   var surface = document.getElementById('terminal-surface');
-  var ESC = String.fromCharCode(27);
-  var C1_CSI = String.fromCharCode(155);
+  var ESC = String.fromCharCode(27), C1_CSI = String.fromCharCode(155);
   var CLAUDE_STATUS_DOT = String.fromCharCode(0x23fa);
   var TEXT_PRESENTATION_SELECTOR = String.fromCharCode(0xfe0e);
   var EMOJI_PRESENTATION_SELECTOR = String.fromCharCode(0xfe0f);
@@ -262,8 +262,8 @@ window.onerror = function(msg) {
   }
   // Why: iOS WebKit does not reliably resolve "SF Mono" by CSS family name and can
   // fall to a non-monospace face; lead with the ui-monospace generic to avoid that.
-  var TERMINAL_FONT_FALLBACKS = '"Menlo", "Monaco", "Cascadia Mono", "Consolas", "DejaVu Sans Mono", "Liberation Mono", "Symbols Nerd Font Mono", monospace';
-  var terminalFontFamily = (isIOSWebView() ? 'ui-monospace, ' : '"SF Mono", ') + TERMINAL_FONT_FALLBACKS;
+  var TERMINAL_FONT_FALLBACKS = '"Menlo", "Monaco", "Cascadia Mono", "Consolas", "DejaVu Sans Mono", "Liberation Mono", "Orca Nerd Font Symbols", "Symbols Nerd Font Mono", monospace';
+  var terminalFontFamily = (isIOSWebView() ? 'ui-monospace, ' : '"SF Mono", ') + TERMINAL_FONT_FALLBACKS;${terminalWebviewFont.TERMINAL_SYMBOL_FONT_READY_JS}
   // Why: change the real font size, then resize the grid to fit the viewport at
   // the new cell metrics so the text shows at its true size immediately. RN's
   // refit (measure → updateViewport) then makes the server reflow the PTY to the
@@ -762,7 +762,7 @@ ${TERMINAL_WEBGL_RECOVERY_JS}
     attachTermObservers();
     attachTerminalQueryReplyBridge(term, gen);
 
-    requestAnimationFrame(function() {
+    afterSymbolFontReadyFrame(function() {
       if (gen !== terminalGeneration) return;
       ready = true;
       everReady = true;

@@ -7,6 +7,9 @@ const require = createRequire(import.meta.url)
 const scriptDir = import.meta.dirname
 const mobileRoot = path.resolve(scriptDir, '..')
 const outputPath = path.join(mobileRoot, 'src', 'terminal', 'terminal-webview-engine.generated.ts')
+// Why: mobile builds independently from desktop, so its self-contained WebView
+// bundle uses a mobile-owned font with the OFL notice kept beside the asset.
+const symbolFontPath = path.join(mobileRoot, 'assets', 'fonts', 'SymbolsNerdFontMono-Regular.woff2')
 const target = 'chrome74'
 
 const packages = ['@xterm/xterm', '@xterm/addon-unicode11', '@xterm/addon-webgl']
@@ -80,9 +83,10 @@ async function buildEngineJs() {
 }
 
 async function main() {
-  const [engineJs, rawEngineCss, ...versions] = await Promise.all([
+  const [engineJs, rawEngineCss, symbolFont, ...versions] = await Promise.all([
     buildEngineJs(),
     readFile(require.resolve('@xterm/xterm/css/xterm.css'), 'utf8'),
+    readFile(symbolFontPath),
     ...packages.map(readPackageVersion)
   ])
   // Why: the no-external-URL regression gate bans http(s):// anywhere in the
@@ -99,6 +103,7 @@ async function main() {
     `// Target: ${target}. Do not edit by hand; regenerate via pnpm postinstall.`,
     `export const XTERM_ENGINE_JS = ${JSON.stringify(htmlText(engineJs, 'script'))}`,
     `export const XTERM_ENGINE_CSS = ${JSON.stringify(htmlText(engineCss, 'style'))}`,
+    `export const ORCA_NERD_FONT_SYMBOLS_DATA_URI = ${JSON.stringify(`data:font/woff2;base64,${symbolFont.toString('base64')}`)}`,
     ''
   ].join('\n')
 

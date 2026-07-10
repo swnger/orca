@@ -2,12 +2,20 @@ import { readFileSync } from 'node:fs'
 import { Script } from 'node:vm'
 import { parse } from 'acorn'
 import { describe, expect, it, vi } from 'vitest'
-import { XTERM_ENGINE_CSS, XTERM_ENGINE_JS } from './terminal-webview-engine.generated'
+import {
+  ORCA_NERD_FONT_SYMBOLS_DATA_URI,
+  XTERM_ENGINE_CSS,
+  XTERM_ENGINE_JS
+} from './terminal-webview-engine.generated'
 import { XTERM_HTML } from './terminal-webview-html'
 import { TERMINAL_WEBGL_RECOVERY_JS } from './terminal-webview-webgl-recovery-injected'
 
 const terminalHtmlSource = readFileSync(
   new URL('./terminal-webview-html.ts', import.meta.url),
+  'utf8'
+)
+const symbolFontLicense = readFileSync(
+  new URL('../../assets/fonts/SymbolsNerdFontMono-OFL.txt', import.meta.url),
   'utf8'
 )
 
@@ -96,6 +104,38 @@ describe('terminal WebView bundled engine', () => {
     expect(XTERM_HTML).not.toContain('cdn.jsdelivr.net')
     expect(XTERM_HTML).not.toContain('<script src=')
     expect(XTERM_HTML).not.toContain('rel="stylesheet" href=')
+  })
+
+  it('embeds the bundled PUA symbol font in the WebView document', () => {
+    expect(ORCA_NERD_FONT_SYMBOLS_DATA_URI).toMatch(/^data:font\/woff2;base64,[A-Za-z0-9+/]+=*$/)
+    expect(ORCA_NERD_FONT_SYMBOLS_DATA_URI.slice(0, 23)).toBe('data:font/woff2;base64,')
+    expect(
+      Buffer.from(ORCA_NERD_FONT_SYMBOLS_DATA_URI.slice(23), 'base64').subarray(0, 4).toString()
+    ).toBe('wOF2')
+    expect(XTERM_HTML).toContain("font-family: 'Orca Nerd Font Symbols'")
+    expect(XTERM_HTML).toContain('unicode-range: U+E000-F8FF, U+F0000-FFFFD, U+100000-10FFFD')
+    expect(XTERM_HTML).toContain(ORCA_NERD_FONT_SYMBOLS_DATA_URI)
+  })
+
+  it('keeps the mobile-owned symbol font license adjacent to the source asset', () => {
+    expect(symbolFontLicense).toContain('Copyright (c) 2014, Ryan L McIntyre')
+    expect(symbolFontLicense).toContain('SIL OPEN FONT LICENSE Version 1.1')
+  })
+
+  it('waits for the symbol font before draining the initial terminal replay', () => {
+    const init = XTERM_HTML.indexOf('function init(')
+    const replay = XTERM_HTML.indexOf('enqueueWrite(replayData)', init)
+    const wait = XTERM_HTML.indexOf('afterSymbolFontReadyFrame(function()', init)
+    const ready = XTERM_HTML.indexOf('ready = true;', wait)
+    expect(XTERM_HTML).toContain(
+      `.load('400 13px "Orca Nerd Font Symbols"', String.fromCharCode(0xe0b0))`
+    )
+    expect(XTERM_HTML).toContain(
+      'symbolFontReady.then(function() { requestAnimationFrame(callback); })'
+    )
+    expect(replay).toBeGreaterThan(init)
+    expect(wait).toBeGreaterThan(replay)
+    expect(ready).toBeGreaterThan(wait)
   })
 
   it('parses the bundled engine at the Chrome 74 syntax floor', () => {

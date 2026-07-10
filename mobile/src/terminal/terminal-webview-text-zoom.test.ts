@@ -45,7 +45,7 @@ function resolveTerminalFontFamily(navigatorValue: {
   // on font-related markers so unrelated edits below it can't break this extraction.
   const functionStart = terminalHtmlSource.indexOf('  function isIOSWebView()')
   const declarationLine = terminalHtmlSource.indexOf('  var terminalFontFamily =', functionStart)
-  const declarationEnd = terminalHtmlSource.indexOf('\n', declarationLine)
+  const declarationEnd = terminalHtmlSource.indexOf(';', declarationLine) + 1
   expect(functionStart).toBeGreaterThanOrEqual(0)
   expect(declarationLine).toBeGreaterThan(functionStart)
   expect(declarationEnd).toBeGreaterThan(declarationLine)
@@ -158,6 +158,15 @@ describe('TerminalWebView text zoom', () => {
     expect(terminalHtmlSource).toContain("fontWeight: '300'")
     expect(terminalHtmlSource).toContain("fontWeightBold: '500'")
     expect(terminalWebglRecoverySource).toContain('new window.WebglAddon.WebglAddon()')
+  })
+
+  it('places the bundled PUA fallback before optional installed Nerd Fonts', () => {
+    const fontFamily = resolveTerminalFontFamily(ANDROID_NAVIGATOR)
+    const bundledIndex = fontFamily.indexOf('"Orca Nerd Font Symbols"')
+    const installedIndex = fontFamily.indexOf('"Symbols Nerd Font Mono"')
+    expect(fontFamily).toContain('"Orca Nerd Font Symbols"')
+    expect(bundledIndex).toBeGreaterThanOrEqual(0)
+    expect(installedIndex).toBeGreaterThan(bundledIndex)
   })
 
   const IOS_IPHONE_NAVIGATOR = {
